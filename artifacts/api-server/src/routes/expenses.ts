@@ -166,7 +166,7 @@ Please analyze their spending patterns and give 3–5 personalised, practical, a
 - Keep the tone encouraging and supportive, not judgmental.
 - Format your response as clear paragraphs or a short numbered list. Do not use markdown headers.`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     const geminiRes = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
