@@ -260,11 +260,14 @@ function AiAdviceCard() {
   const { data: expenses } = useGetExpenses();
   const getAdvice = useGetAiAdvice();
   const [advice, setAdvice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleGetAdvice = () => {
     if (!expenses) return;
+    setError(null);
     getAdvice.mutate({ data: { expenses } }, {
       onSuccess: (res) => setAdvice(res.advice),
+      onError: () => setError("Could not get advice right now. Please try again in a moment."),
     });
   };
 
@@ -284,21 +287,28 @@ function AiAdviceCard() {
           Get smart tips on your spending habits.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-3">
         {advice ? (
           <div className="bg-white/80 dark:bg-black/30 p-5 rounded-xl text-sm text-foreground/90 leading-relaxed border border-white/60 dark:border-white/10 backdrop-blur-md shadow-sm relative z-10 font-medium">
             {advice}
           </div>
         ) : (
-          <Button 
-            onClick={handleGetAdvice} 
-            disabled={!expenses || expenses.length === 0 || getAdvice.isPending}
-            className="w-full relative z-10 h-11 rounded-xl font-medium"
-            variant="secondary"
-          >
-            {getAdvice.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            {expenses?.length === 0 ? "Log some kharcha first" : "Get Advice 💡"}
-          </Button>
+          <>
+            {error && (
+              <div className="relative z-10 px-4 py-3 rounded-xl bg-destructive/10 border border-destructive/20 text-sm text-destructive font-medium">
+                {error}
+              </div>
+            )}
+            <Button 
+              onClick={handleGetAdvice} 
+              disabled={!expenses || expenses.length === 0 || getAdvice.isPending}
+              className="w-full relative z-10 h-11 rounded-xl font-medium"
+              variant="secondary"
+            >
+              {getAdvice.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {expenses?.length === 0 ? "Log some kharcha first" : error ? "Try Again 💡" : "Get Advice 💡"}
+            </Button>
+          </>
         )}
       </CardContent>
     </Card>
