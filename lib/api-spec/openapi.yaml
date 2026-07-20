@@ -1,36 +1,189 @@
-openapi: 3.1.0
+openapi: "3.1.0"
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: "1.0.0"
 servers:
   - url: /api
-    description: Base API path
-tags:
-  - name: health
-    description: Health operations
+
 paths:
   /healthz:
     get:
-      operationId: healthCheck
-      tags: [health]
+      operationId: getHealth
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
-          description: Healthy
+          description: OK
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /expenses:
+    get:
+      operationId: getExpenses
+      summary: List all expenses newest first
+      responses:
+        "200":
+          description: List of expenses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Expense"
+    post:
+      operationId: createExpense
+      summary: Add a new expense
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExpenseInput"
+      responses:
+        "201":
+          description: Created expense
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Expense"
+        "400":
+          description: Invalid input
+
+  /expenses/summary:
+    get:
+      operationId: getExpenseSummary
+      summary: Get spending summary (weekly, monthly, by category)
+      responses:
+        "200":
+          description: Spending summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseSummary"
+
+  /expenses/advice:
+    post:
+      operationId: getAiAdvice
+      summary: Get AI saving advice based on expenses
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdviceRequest"
+      responses:
+        "200":
+          description: AI saving advice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdviceResponse"
+        "500":
+          description: AI service error
+
+  /expenses/{id}:
+    delete:
+      operationId: deleteExpense
+      summary: Delete an expense by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResult"
+        "404":
+          description: Not found
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    Expense:
+      type: object
+      required: [id, amount, category, date, createdAt]
+      properties:
+        id:
+          type: integer
+        amount:
+          type: number
+        category:
+          type: string
+        date:
+          type: string
+        note:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    ExpenseInput:
+      type: object
+      required: [amount, category, date]
+      properties:
+        amount:
+          type: number
+          minimum: 1
+        category:
+          type: string
+          enum: [Food, Transport, Mobile/Internet, Entertainment, Education, Other]
+        date:
+          type: string
+        note:
+          type: string
+
+    CategorySummary:
+      type: object
+      required: [category, total]
+      properties:
+        category:
+          type: string
+        total:
+          type: number
+
+    ExpenseSummary:
+      type: object
+      required: [weekTotal, monthTotal, byCategory]
+      properties:
+        weekTotal:
+          type: number
+        monthTotal:
+          type: number
+        byCategory:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategorySummary"
+
+    AdviceRequest:
+      type: object
+      required: [expenses]
+      properties:
+        expenses:
+          type: array
+          items:
+            $ref: "#/components/schemas/Expense"
+
+    AdviceResponse:
+      type: object
+      required: [advice]
+      properties:
+        advice:
+          type: string
+
+    DeleteResult:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
