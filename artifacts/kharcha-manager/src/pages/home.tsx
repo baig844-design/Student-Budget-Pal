@@ -265,7 +265,7 @@ function AiAdviceCard() {
     if (!expenses || expenses.length === 0) return;
     setAdvice(null);
     getAiAdvice.mutate(
-      { data: { expenses: expenses.map((e) => ({ amount: e.amount, category: e.category })) } },
+      { data: { expenses } },
       {
         onSuccess: (data) => setAdvice(data.advice),
       }

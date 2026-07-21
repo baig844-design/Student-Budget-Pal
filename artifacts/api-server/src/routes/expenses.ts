@@ -1,8 +1,11 @@
 import { Router } from "express";
 import { db, expensesTable } from "@workspace/db";
 import { desc, gte, sql } from "drizzle-orm";
-import { CreateExpenseBody, DeleteExpenseParams, GetAiAdviceBody } from "@workspace/api-zod";
-
+import {
+  CreateExpenseBody,
+  DeleteExpenseParams,
+  GetAiAdviceBody,
+} from "@workspace/api-zod";
 
 const router = Router();
 
@@ -22,7 +25,7 @@ router.get("/expenses", async (req, res) => {
         date: e.date,
         note: e.note ?? null,
         createdAt: e.createdAt.toISOString(),
-      }))
+      })),
     );
   } catch (err) {
     req.log.error({ err }, "Failed to fetch expenses");
@@ -34,7 +37,9 @@ router.get("/expenses", async (req, res) => {
 router.post("/expenses", async (req, res) => {
   const parsed = CreateExpenseBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
+    res
+      .status(400)
+      .json({ error: "Invalid input", details: parsed.error.issues });
     return;
   }
 
@@ -73,7 +78,7 @@ router.get("/expenses/summary", async (req, res) => {
     // Start of current week (Monday)
     const weekStart = new Date(now);
     const day = weekStart.getDay();
-    const diffToMon = (day === 0 ? -6 : 1 - day);
+    const diffToMon = day === 0 ? -6 : 1 - day;
     weekStart.setDate(weekStart.getDate() + diffToMon);
     weekStart.setHours(0, 0, 0, 0);
 
@@ -85,11 +90,15 @@ router.get("/expenses/summary", async (req, res) => {
 
     const [weekRows, monthRows, categoryRows] = await Promise.all([
       db
-        .select({ total: sql<string>`COALESCE(SUM(${expensesTable.amount}), 0)` })
+        .select({
+          total: sql<string>`COALESCE(SUM(${expensesTable.amount}), 0)`,
+        })
         .from(expensesTable)
         .where(gte(expensesTable.date, weekStartStr)),
       db
-        .select({ total: sql<string>`COALESCE(SUM(${expensesTable.amount}), 0)` })
+        .select({
+          total: sql<string>`COALESCE(SUM(${expensesTable.amount}), 0)`,
+        })
         .from(expensesTable)
         .where(gte(expensesTable.date, monthStartStr)),
       db
@@ -127,13 +136,16 @@ router.post("/expenses/advice", async (req, res) => {
   const { expenses } = parsed.data;
 
   if (expenses.length === 0) {
-    res.json({ advice: "You have no expenses yet! Start tracking your spending and I'll give you personalised saving tips." });
+    res.json({
+      advice:
+        "You have no expenses yet! Start tracking your spending and I'll give you personalised saving tips.",
+    });
     return;
   }
 
-  const apiKey = process.env.GROQ_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    req.log.error("GROQ_API_KEY is not set");
+    req.log.error("OPENROUTER_API_KEY is not set");
     res.status(500).json({ error: "AI service not configured" });
     return;
   }
@@ -166,30 +178,38 @@ Please analyze their spending patterns and give 3–5 personalised, practical, a
 - Keep the tone encouraging and supportive, not judgmental.
 - Format your response as clear paragraphs or a short numbered list. Do not use markdown headers.`;
 
-    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
+    const groqRes = await fetch(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "meta-llama/llama-3.1-8b-instruct:free",
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.7,
+        }),
       },
-      body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.7,
-      }),
-    });
+    );
 
     if (!groqRes.ok) {
       const errText = await groqRes.text();
-      req.log.error({ status: groqRes.status, body: errText }, "Groq API error");
+      req.log.error(
+        { status: groqRes.status, body: errText },
+        "Groq API error",
+      );
       res.status(500).json({ error: "AI service error" });
       return;
     }
 
-    const groqData = await groqRes.json() as {
+    const groqData = (await groqRes.json()) as {
       choices?: { message?: { content?: string } }[];
     };
-    const advice = groqData.choices?.[0]?.message?.content ?? "Sorry, I could not generate advice right now.";
+    const advice =
+      groqData.choices?.[0]?.message?.content ??
+      "Sorry, I could not generate advice right now.";
 
     res.json({ advice });
   } catch (err) {
