@@ -24,7 +24,6 @@ import {
   useCreateExpense,
   useDeleteExpense,
   useGetExpenseSummary,
-  useGetAiAdvice,
   getGetExpensesQueryKey,
   getGetExpenseSummaryQueryKey,
 } from "@workspace/api-client-react";
@@ -256,19 +255,72 @@ function ExpenseForm() {
   );
 }
 
+function buildAdvicePrompt(expenses: { amount: number; category: string }[]) {
+  const byCategory: Record<string, number> = {};
+  let total = 0;
+  for (const e of expenses) {
+    byCategory[e.category] = (byCategory[e.category] ?? 0) + e.amount;
+    total += e.amount;
+  }
+  const breakdown = Object.entries(byCategory)
+    .sort((a, b) => b[1] - a[1])
+    .map(([cat, amt]) => `  - ${cat}: Rs. ${amt.toFixed(0)}`)
+    .join("\n");
+
+  return `You are a friendly financial advisor helping Pakistani university students manage their money better.
+
+Here is the student's recent expense data:
+Total spent: Rs. ${total.toFixed(0)}
+Number of transactions: ${expenses.length}
+Spending by category:
+${breakdown}
+
+Please analyze their spending patterns and give 3–5 personalised, practical, and friendly saving tips in simple English.
+- Point out which category they're overspending in (if any) and why it matters for a student on a budget.
+- Give concrete, actionable suggestions relevant to a Pakistani student (e.g. mention local context like hostel food, rickshaw vs. bus, mobile packages, etc.).
+- Keep the tone encouraging and supportive, not judgmental.
+- Format your response as clear paragraphs or a short numbered list. Do not use markdown headers.`;
+}
+
 function AiAdviceCard() {
   const { data: expenses } = useGetExpenses();
-  const getAdvice = useGetAiAdvice();
   const [advice, setAdvice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
 
-  const handleGetAdvice = () => {
-    if (!expenses) return;
+  const handleGetAdvice = async () => {
+    if (!expenses || expenses.length === 0) return;
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+    if (!apiKey) {
+      setError("Gemini API key not configured. Set VITE_GEMINI_API_KEY in Replit Secrets.");
+      return;
+    }
     setError(null);
-    getAdvice.mutate({ data: { expenses } }, {
-      onSuccess: (res) => setAdvice(res.advice),
-      onError: () => setError("Could not get advice right now. Please try again in a moment."),
-    });
+    setIsPending(true);
+    try {
+      const prompt = buildAdvicePrompt(expenses);
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+        }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: { message?: string } };
+        throw new Error(err?.error?.message ?? `HTTP ${res.status}`);
+      }
+      const data = await res.json() as {
+        candidates?: { content?: { parts?: { text?: string }[] } }[];
+      };
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      setAdvice(text ?? "Sorry, I could not generate advice right now.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not get advice. Please try again.");
+    } finally {
+      setIsPending(false);
+    }
   };
 
   return (
