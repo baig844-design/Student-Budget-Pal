@@ -353,11 +353,11 @@ function AiAdviceCard() {
             )}
             <Button 
               onClick={handleGetAdvice} 
-              disabled={!expenses || expenses.length === 0 || getAdvice.isPending}
+              disabled={!expenses || expenses.length === 0 || isPending}
               className="w-full relative z-10 h-11 rounded-xl font-medium"
               variant="secondary"
             >
-              {getAdvice.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {expenses?.length === 0 ? "Log some kharcha first" : error ? "Try Again 💡" : "Get Advice 💡"}
             </Button>
           </>
