@@ -116,7 +116,7 @@ router.get("/expenses/summary", async (req, res) => {
   }
 });
 
-// POST /expenses/advice — AI saving advice via Gemini
+// POST /expenses/advice — AI saving advice via Groq
 router.post("/expenses/advice", async (req, res) => {
   const parsed = GetAiAdviceBody.safeParse(req.body);
   if (!parsed.success) {
@@ -131,9 +131,9 @@ router.post("/expenses/advice", async (req, res) => {
     return;
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
-    req.log.error("GEMINI_API_KEY is not set");
+    req.log.error("GROQ_API_KEY is not set");
     res.status(500).json({ error: "AI service not configured" });
     return;
   }
@@ -166,26 +166,30 @@ Please analyze their spending patterns and give 3–5 personalised, practical, a
 - Keep the tone encouraging and supportive, not judgmental.
 - Format your response as clear paragraphs or a short numbered list. Do not use markdown headers.`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-    const geminiRes = await fetch(url, {
+    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
+        model: "llama-3.1-8b-instant",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.7,
       }),
     });
 
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      req.log.error({ status: geminiRes.status, body: errText }, "Gemini API error");
+    if (!groqRes.ok) {
+      const errText = await groqRes.text();
+      req.log.error({ status: groqRes.status, body: errText }, "Groq API error");
       res.status(500).json({ error: "AI service error" });
       return;
     }
 
-    const geminiData = await geminiRes.json() as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    const groqData = await groqRes.json() as {
+      choices?: { message?: { content?: string } }[];
     };
-    const advice = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? "Sorry, I could not generate advice right now.";
+    const advice = groqData.choices?.[0]?.message?.content ?? "Sorry, I could not generate advice right now.";
 
     res.json({ advice });
   } catch (err) {
