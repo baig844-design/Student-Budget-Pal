@@ -187,7 +187,7 @@ Please analyze their spending patterns and give 3–5 personalised, practical, a
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "meta-llama/llama-3.3-70b-instruct:free",
+          model: "openai/gpt-oss-120b:free",
           messages: [{ role: "user", content: prompt }],
           temperature: 0.7,
         }),
