@@ -187,7 +187,7 @@ Please analyze their spending patterns and give 3–5 personalised, practical, a
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "openai/gpt-oss-120b:free",
+          model: "nvidia/nemotron-3-ultra-550b-a55b:free",
           messages: [{ role: "user", content: prompt }],
           temperature: 0.7,
         }),
